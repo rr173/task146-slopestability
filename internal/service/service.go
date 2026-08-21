@@ -154,8 +154,7 @@ func alertFromF(f float64) model.AlertLevel {
 // nextID wraps idlib.New for brevity in the method files.
 func nextID(prefix string) string { return idlib.New(prefix) }
 
-// solveByMethod keeps submitted analyses, live monitoring recomputes and
-// restart reconciliation on the same limit-equilibrium formulation.
+// solveByMethod selects a limit-equilibrium formulation for one input.
 func solveByMethod(method model.AnalysisMethod, in geotech.SolveInput) (geotech.SolveResult, error) {
 	switch method {
 	case model.MethodBishop:

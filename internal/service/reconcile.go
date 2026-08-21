@@ -65,7 +65,6 @@ func (r *Reconciler) reconcileOne(ctx context.Context, slopeID string) (int, int
 		last := analyses[0]
 		sf, err := r.s.store.GetSlipSurface(ctx, last.SlipSurfaceID)
 		if err == nil && sf.Type == model.SlipCircular {
-			// Live water table: prefer the latest piezometer reading.
 			waterTable := last.WaterTableEl
 			if pr, err := r.s.store.LatestPiezometerReading(ctx, slopeID); err == nil {
 				waterTable = pr.Value

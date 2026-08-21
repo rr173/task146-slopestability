@@ -120,10 +120,6 @@ func (s *Service) SubmitAnalysis(ctx context.Context, slopeID string, in Analysi
 		if err != nil {
 			return err
 		}
-		// A persisted piezometer observation is the authoritative live head.
-		// It must take precedence over both an ad-hoc analysis value and the
-		// static slope water table so a newly submitted analysis agrees with the
-		// monitoring and recovery paths.
 		waterTable := in.WaterTableEl
 		if pr, err := s.store.LatestPiezometerReadingTx(ctx, tx, slopeID); err == nil {
 			waterTable = pr.Value

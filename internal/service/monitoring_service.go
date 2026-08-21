@@ -69,10 +69,8 @@ type ReadingInput struct {
 	Source    string  `json:"source"`
 }
 
-// AddReadingRecord stores a reading and atomically recomputes the slope's FOS
-// and alert level from the latest piezometer reading. All steps run in one
-// transaction (recovery consistency constraint): reading insert, F recompute,
-// compliance write-back, alert transition and event append.
+// AddReadingRecord stores a reading and atomically refreshes the derived
+// monitoring state in the same transaction.
 func (s *Service) AddReadingRecord(ctx context.Context, instrumentID string, in ReadingInput) (*model.Session, float64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -126,10 +124,7 @@ func (s *Service) AddReadingRecord(ctx context.Context, instrumentID string, in 
 			return err
 		}
 
-		// Recompute F from the latest inputs: read the most recent piezometer
-		// value (which may be this very reading) and re-run the latest analysis
-		// configuration with that water table. If there is no prior analysis,
-		// no recompute is possible — the reading is still persisted.
+		// A reading can refresh derived monitoring state when prior analysis data exists.
 		layers, err := s.store.ListLayersTx(ctx, tx, slopeID)
 		if err != nil {
 			return err
@@ -149,7 +144,6 @@ func (s *Service) AddReadingRecord(ctx context.Context, instrumentID string, in 
 		if err != nil {
 			return err
 		}
-		// Latest piezometer reading => live water table elevation (head).
 		waterTable := last.WaterTableEl
 		if pr, err := s.store.LatestPiezometerReadingTx(ctx, tx, slopeID); err == nil {
 			waterTable = pr.Value
