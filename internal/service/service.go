@@ -10,6 +10,7 @@
 package service
 
 import (
+	"fmt"
 	"math"
 	"sync"
 
@@ -152,3 +153,18 @@ func alertFromF(f float64) model.AlertLevel {
 
 // nextID wraps idlib.New for brevity in the method files.
 func nextID(prefix string) string { return idlib.New(prefix) }
+
+// solveByMethod keeps submitted analyses, live monitoring recomputes and
+// restart reconciliation on the same limit-equilibrium formulation.
+func solveByMethod(method model.AnalysisMethod, in geotech.SolveInput) (geotech.SolveResult, error) {
+	switch method {
+	case model.MethodBishop:
+		return geotech.SolveBishop(in)
+	case model.MethodFellenius:
+		return geotech.SolveFellenius(in)
+	case model.MethodJanbu:
+		return geotech.SolveJanbu(in)
+	default:
+		return geotech.SolveResult{}, fmt.Errorf("%w: unknown method %s", store.ErrInvariant, method)
+	}
+}

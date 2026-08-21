@@ -177,7 +177,7 @@ func (s *Service) AddReadingRecord(ctx context.Context, instrumentID string, in 
 			N: last.SliceCount, WaterTableEl: waterTable, Kh: last.Kh, Kv: last.Kv,
 			Reinforcements: reinforcementInputs(reinf, layers, sl),
 		}
-		res, serr := geotech.SolveBishop(gin)
+		res, serr := solveByMethod(last.Method, gin)
 		f := res.F
 		if serr != nil {
 			f = 0

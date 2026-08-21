@@ -144,17 +144,9 @@ func (s *Service) SubmitAnalysis(ctx context.Context, slopeID string, in Analysi
 			Reinforcements: reinforcementInputs(reinf, layers, sl),
 		}
 
-		var res geotech.SolveResult
-		var serr error
-		switch method {
-		case model.MethodBishop:
-			res, serr = geotech.SolveBishop(gin)
-		case model.MethodFellenius:
-			res, serr = geotech.SolveFellenius(gin)
-		case model.MethodJanbu:
-			res, serr = geotech.SolveJanbu(gin)
-		default:
-			return fmt.Errorf("%w: unknown method %s", store.ErrInvariant, method)
+		res, serr := solveByMethod(method, gin)
+		if serr != nil && res.F == 0 && method != model.MethodBishop && method != model.MethodFellenius && method != model.MethodJanbu {
+			return serr
 		}
 		status := model.AnalysisConverged
 		finalF := res.F
