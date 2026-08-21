@@ -1,0 +1,5 @@
+.private/
+slopestab.db
+slopestab.db-*
+*.test
+*.out
