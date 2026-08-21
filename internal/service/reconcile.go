@@ -66,9 +66,11 @@ func (r *Reconciler) reconcileOne(ctx context.Context, slopeID string) (int, int
 		sf, err := r.s.store.GetSlipSurface(ctx, last.SlipSurfaceID)
 		if err == nil && sf.Type == model.SlipCircular {
 			// Live water table: prefer the latest piezometer reading.
-			waterTable := sl.WaterTableEl
+			waterTable := last.WaterTableEl
 			if pr, err := r.s.store.LatestPiezometerReading(ctx, slopeID); err == nil {
 				waterTable = pr.Value
+			} else if err != nil && err != store.ErrNotFound {
+				return 0, 0, err
 			}
 			prof := profileFromSlope(sl)
 			prof.SurchargeQ = last.SurchargeQ

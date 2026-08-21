@@ -127,10 +127,9 @@ func (s *Service) SubmitAnalysis(ctx context.Context, slopeID string, in Analysi
 		waterTable := in.WaterTableEl
 		if pr, err := s.store.LatestPiezometerReadingTx(ctx, tx, slopeID); err == nil {
 			waterTable = pr.Value
-		} else if err != nil && !errors.Is(err, store.ErrNotFound) {
+		} else if !errors.Is(err, store.ErrNotFound) {
 			return err
-		}
-		if waterTable <= 0 {
+		} else if waterTable <= 0 {
 			waterTable = sl.WaterTableEl
 		}
 		prof := profileFromSlope(sl)

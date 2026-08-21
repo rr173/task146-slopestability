@@ -150,14 +150,11 @@ func (s *Service) AddReadingRecord(ctx context.Context, instrumentID string, in 
 			return err
 		}
 		// Latest piezometer reading => live water table elevation (head).
-		var waterTable float64
+		waterTable := last.WaterTableEl
 		if pr, err := s.store.LatestPiezometerReadingTx(ctx, tx, slopeID); err == nil {
 			waterTable = pr.Value
 		} else if !errors.Is(err, store.ErrNotFound) {
 			return err
-		}
-		if waterTable <= 0 {
-			waterTable = sl.WaterTableEl
 		}
 
 		// Promote to monitoring on first reading if still analyzing.
