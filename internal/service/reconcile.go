@@ -65,10 +65,21 @@ func (r *Reconciler) reconcileOne(ctx context.Context, slopeID string) (int, int
 		last := analyses[0]
 		sf, err := r.s.store.GetSlipSurface(ctx, last.SlipSurfaceID)
 		if err == nil && sf.Type == model.SlipCircular {
-			waterTable := last.WaterTableEl
-			if _, err := r.s.store.LatestPiezometerReading(ctx, slopeID); err != nil && err != store.ErrNotFound {
-				return 0, 0, err
+			// Water-head priority mirrors the live path (monitoring +
+			// SubmitAnalysis): latest piezometer head > last run's head >
+			// static. Reusing resolveWaterTable keeps the restart reconcile on
+			// the same computation basis as the online recompute.
+			var measuredHead float64
+			hasReading := false
+			rd, rerr := r.s.store.LatestPiezometerReading(ctx, slopeID)
+			if rerr != nil && rerr != store.ErrNotFound {
+				return 0, 0, rerr
 			}
+			if rerr == nil {
+				measuredHead = rd.Value
+				hasReading = true
+			}
+			waterTable := resolveWaterTable(hasReading, measuredHead, last.WaterTableEl, sl.WaterTableEl)
 			prof := profileFromSlope(sl)
 			prof.SurchargeQ = last.SurchargeQ
 			if last.TensionCrackDepth > 0 {

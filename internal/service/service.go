@@ -133,6 +133,25 @@ func reinforcementInputs(rs []model.Reinforcement, layers []model.SoilLayer, sl 
 	return out
 }
 
+// resolveWaterTable applies the water-head priority rule that feeds the
+// solver's water table, so the live monitoring recompute and the restart
+// reconcile compute identical inputs: the latest piezometer reading (a head
+// in metres) wins over a requested run water table, which wins over the
+// slope's static water table.
+//
+// hasReading distinguishes "no reading exists" (fall through to the requested
+// or static table) from a real reading whose Value is 0 — a measured dry head
+// that must be honoured rather than ignored as "not supplied".
+func resolveWaterTable(hasReading bool, measuredHead, requested, static float64) float64 {
+	if hasReading {
+		return measuredHead
+	}
+	if requested > 0 {
+		return requested
+	}
+	return static
+}
+
 // alertFromF maps a recomputed safety factor to an alert level against the
 // static required curve. F >= required => green; F >= 0.9×required => yellow;
 // else red. Additional red triggers (inclinometer displacement, pore-pressure

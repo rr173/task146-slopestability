@@ -144,10 +144,20 @@ func (s *Service) AddReadingRecord(ctx context.Context, instrumentID string, in 
 		if err != nil {
 			return err
 		}
-		waterTable := last.WaterTableEl
-		if _, err := s.store.LatestPiezometerReadingTx(ctx, tx, slopeID); err != nil && !errors.Is(err, store.ErrNotFound) {
-			return err
+		// Water-head priority: latest piezometer head > last run's head > static.
+		// A real reading (even Value 0 = measured dry head) wins, so the live
+		// recompute reflects the wetted condition just recorded.
+		var measuredHead float64
+		hasReading := false
+		rd, rerr := s.store.LatestPiezometerReadingTx(ctx, tx, slopeID)
+		if rerr != nil && !errors.Is(rerr, store.ErrNotFound) {
+			return rerr
 		}
+		if rerr == nil {
+			measuredHead = rd.Value
+			hasReading = true
+		}
+		waterTable := resolveWaterTable(hasReading, measuredHead, last.WaterTableEl, sl.WaterTableEl)
 
 		// Promote to monitoring on first reading if still analyzing.
 		newStatus := sl.Status

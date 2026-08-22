@@ -120,13 +120,19 @@ func (s *Service) SubmitAnalysis(ctx context.Context, slopeID string, in Analysi
 		if err != nil {
 			return err
 		}
-		waterTable := in.WaterTableEl
-		if _, err := s.store.LatestPiezometerReadingTx(ctx, tx, slopeID); err != nil && !errors.Is(err, store.ErrNotFound) {
-			return err
+		// Water-head priority: latest piezometer head > requested run head > static.
+		// A real reading (even Value 0 = measured dry head) wins over the rest.
+		var measuredHead float64
+		hasReading := false
+		rd, rerr := s.store.LatestPiezometerReadingTx(ctx, tx, slopeID)
+		if rerr != nil && !errors.Is(rerr, store.ErrNotFound) {
+			return rerr
 		}
-		if waterTable <= 0 {
-			waterTable = sl.WaterTableEl
+		if rerr == nil {
+			measuredHead = rd.Value
+			hasReading = true
 		}
+		waterTable := resolveWaterTable(hasReading, measuredHead, in.WaterTableEl, sl.WaterTableEl)
 		prof := profileFromSlope(sl)
 		prof.SurchargeQ = in.SurchargeQ
 		if in.TensionCrackDepth > 0 {
@@ -257,7 +263,21 @@ func (s *Service) SearchCritical(ctx context.Context, slopeID string, in SearchC
 			return fmt.Errorf("%w: slope has no soil layers", store.ErrInvariant)
 		}
 		prof := profileFromSlope(sl)
-		gin := geotech.SolveInput{Profile: prof, Layers: layers, N: 20, WaterTableEl: sl.WaterTableEl}
+		// Critical search shares the water-head priority: measured head wins
+		// over the static table (no requested head here). Keeps the search
+		// consistent with SubmitAnalysis.
+		var measuredHead float64
+		hasReading := false
+		rd, rerr := s.store.LatestPiezometerReadingTx(ctx, tx, slopeID)
+		if rerr != nil && !errors.Is(rerr, store.ErrNotFound) {
+			return rerr
+		}
+		if rerr == nil {
+			measuredHead = rd.Value
+			hasReading = true
+		}
+		waterTable := resolveWaterTable(hasReading, measuredHead, 0, sl.WaterTableEl)
+		gin := geotech.SolveInput{Profile: prof, Layers: layers, N: 20, WaterTableEl: waterTable}
 		grid := geotech.GridBounds{
 			CxMin: in.Grid.CxMin, CxMax: in.Grid.CxMax, CzMin: in.Grid.CzMin, CzMax: in.Grid.CzMax,
 			RMin: in.Grid.RMin, RMax: in.Grid.RMax, CxStep: in.Grid.CxStep, CzStep: in.Grid.CzStep, RStep: in.Grid.RStep,
