@@ -78,7 +78,7 @@ func (r *Reconciler) reconcileOne(ctx context.Context, slopeID string) (int, int
 			}
 			gin := geotech.SolveInput{
 				Profile: prof, Layers: layers, Cx: sf.Cx, Cz: sf.Cz, R: sf.Radius,
-				N: 5, WaterTableEl: waterTable, Kh: last.Kh, Kv: last.Kv,
+				N: last.SliceCount, WaterTableEl: waterTable, Kh: last.Kh, Kv: last.Kv,
 				Reinforcements: reinforcementInputs(reinf, layers, sl),
 			}
 			res, serr := solveByMethod(last.Method, gin)

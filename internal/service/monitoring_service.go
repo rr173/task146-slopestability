@@ -165,7 +165,7 @@ func (s *Service) AddReadingRecord(ctx context.Context, instrumentID string, in 
 		reinf, _ := s.store.ListReinforcementsTx(ctx, tx, slopeID)
 		gin := geotech.SolveInput{
 			Profile: prof, Layers: layers, Cx: sf.Cx, Cz: sf.Cz, R: sf.Radius,
-			N: 5, WaterTableEl: waterTable, Kh: last.Kh, Kv: last.Kv,
+			N: last.SliceCount, WaterTableEl: waterTable, Kh: last.Kh, Kv: last.Kv,
 			Reinforcements: reinforcementInputs(reinf, layers, sl),
 		}
 		res, serr := solveByMethod(last.Method, gin)
