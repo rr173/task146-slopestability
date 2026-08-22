@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"math"
 	"path/filepath"
 	"testing"
 
@@ -135,6 +136,48 @@ func TestAnalysisIncludesReinforcement(t *testing.T) {
 	reinforced := runAnalysisForTest(t, svc, ctx, slopeID, slipID, AnalysisInput{})
 	if reinforced.FinalF <= plain.FinalF {
 		t.Fatalf("reinforcement F=%v, want greater than %v", reinforced.FinalF, plain.FinalF)
+	}
+}
+
+// TestReinforcementAppliesInAllComputePaths guards against the regression where
+// the online monitoring recompute and the restart-reconciliation recompute both
+// loaded stored reinforcements then discarded them, leaving the live/recovered
+// safety factor at the unreinforced baseline. Each path must reflect the
+// stabilising effect already captured by the initial analysis.
+func TestReinforcementAppliesInAllComputePaths(t *testing.T) {
+	svc, ctx, slopeID, slipID := configuredAnalysisService(t, 0)
+	// Install the reinforcement, then run the analysis so it is the baseline
+	// of record (its inputs are what the other paths replay).
+	if _, err := svc.AddReinforcement(ctx, slopeID, ReinforcementInput{Type: "anchor", CapacityKN: 100, AngleDeg: 10, DepthEl: 5}); err != nil {
+		t.Fatal(err)
+	}
+	reinforced := runAnalysisForTest(t, svc, ctx, slopeID, slipID, AnalysisInput{})
+
+	// Online recompute path: a piezometer reading triggers AddReadingRecord's
+	// atomic recompute, which must land on the reinforced F, not the bare one.
+	ins, err := svc.CreateInstrument(ctx, slopeID, InstrumentInput{Type: "piezometer", X: 5, InstallEl: 15, RangeMax: 30})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, recompF, err := svc.AddReadingRecord(ctx, ins.ID, ReadingInput{Value: 0, Ts: 1001, Source: "manual"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if math.Abs(recompF-reinforced.FinalF) > 1e-6 {
+		t.Fatalf("online recompute F=%v, want reinforced %v", recompF, reinforced.FinalF)
+	}
+
+	// Restart-reconciliation path: ReconcileAll re-derives current_f from the
+	// persisted inputs; it must also retain the reinforcement.
+	if rc, _, err := svc.Reconcile().ReconcileAll(ctx); err != nil || rc == 0 {
+		t.Fatalf("reconcile: rc=%d err=%v", rc, err)
+	}
+	recovered, err := svc.GetSlope(ctx, slopeID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if math.Abs(recovered.CurrentF-reinforced.FinalF) > 1e-6 {
+		t.Fatalf("restart recompute F=%v, want reinforced %v", recovered.CurrentF, reinforced.FinalF)
 	}
 }
 

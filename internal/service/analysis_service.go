@@ -120,7 +120,6 @@ func (s *Service) SubmitAnalysis(ctx context.Context, slopeID string, in Analysi
 		if err != nil {
 			return err
 		}
-		_ = reinf
 		waterTable := in.WaterTableEl
 		if pr, err := s.store.LatestPiezometerReadingTx(ctx, tx, slopeID); err == nil {
 			waterTable = pr.Value
@@ -137,7 +136,7 @@ func (s *Service) SubmitAnalysis(ctx context.Context, slopeID string, in Analysi
 		gin := geotech.SolveInput{
 			Profile: prof, Layers: layers, Cx: sf.Cx, Cz: sf.Cz, R: sf.Radius,
 			N: in.SliceCount, WaterTableEl: waterTable, Kh: in.Kh, Kv: in.Kv,
-			Reinforcements: nil,
+			Reinforcements: reinforcementInputs(reinf, layers, sl),
 		}
 
 		res, serr := solveByMethod(method, gin)

@@ -162,12 +162,14 @@ func (s *Service) AddReadingRecord(ctx context.Context, instrumentID string, in 
 		if last.TensionCrackDepth > 0 {
 			prof.TensionCrackEl = sl.CrestEl - last.TensionCrackDepth
 		}
-		reinf, _ := s.store.ListReinforcementsTx(ctx, tx, slopeID)
-		_ = reinf
+		reinf, err := s.store.ListReinforcementsTx(ctx, tx, slopeID)
+		if err != nil {
+			return err
+		}
 		gin := geotech.SolveInput{
 			Profile: prof, Layers: layers, Cx: sf.Cx, Cz: sf.Cz, R: sf.Radius,
 			N: last.SliceCount, WaterTableEl: waterTable, Kh: last.Kh, Kv: last.Kv,
-			Reinforcements: nil,
+			Reinforcements: reinforcementInputs(reinf, layers, sl),
 		}
 		res, serr := solveByMethod(last.Method, gin)
 		f := res.F

@@ -54,8 +54,10 @@ func (r *Reconciler) reconcileOne(ctx context.Context, slopeID string) (int, int
 	if err != nil {
 		return 0, 0, err
 	}
-	reinf, _ := r.s.store.ListReinforcements(ctx, slopeID)
-	_ = reinf
+	reinf, err := r.s.store.ListReinforcements(ctx, slopeID)
+	if err != nil {
+		return 0, 0, err
+	}
 	analyses, err := r.s.store.ListAnalyses(ctx, slopeID)
 	if err != nil {
 		return 0, 0, err
@@ -80,7 +82,7 @@ func (r *Reconciler) reconcileOne(ctx context.Context, slopeID string) (int, int
 			gin := geotech.SolveInput{
 				Profile: prof, Layers: layers, Cx: sf.Cx, Cz: sf.Cz, R: sf.Radius,
 				N: last.SliceCount, WaterTableEl: waterTable, Kh: last.Kh, Kv: last.Kv,
-				Reinforcements: nil,
+				Reinforcements: reinforcementInputs(reinf, layers, sl),
 			}
 			res, serr := solveByMethod(last.Method, gin)
 			if serr == nil {
