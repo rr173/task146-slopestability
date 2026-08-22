@@ -168,7 +168,9 @@ func (s *Service) AddReadingRecord(ctx context.Context, instrumentID string, in 
 			N: last.SliceCount, WaterTableEl: waterTable, Kh: last.Kh, Kv: last.Kv,
 			Reinforcements: reinforcementInputs(reinf, layers, sl),
 		}
-		res, serr := geotech.SolveBishop(gin)
+		// Re-run the method the last analysis was actually submitted with, so a
+		// live recompute does not silently swap Janbu/Fellenius for Bishop.
+		res, serr := solveByMethod(last.Method, gin)
 		f := res.F
 		if serr != nil {
 			f = 0

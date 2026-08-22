@@ -139,10 +139,7 @@ func (s *Service) SubmitAnalysis(ctx context.Context, slopeID string, in Analysi
 			Reinforcements: reinforcementInputs(reinf, layers, sl),
 		}
 
-		res, serr := geotech.SolveBishop(gin)
-		if serr != nil && res.F == 0 && method != model.MethodBishop && method != model.MethodFellenius && method != model.MethodJanbu {
-			return serr
-		}
+		res, serr := solveByMethod(method, gin)
 		status := model.AnalysisConverged
 		finalF := res.F
 		if serr != nil {
@@ -263,7 +260,7 @@ func (s *Service) SearchCritical(ctx context.Context, slopeID string, in SearchC
 			CxMin: in.Grid.CxMin, CxMax: in.Grid.CxMax, CzMin: in.Grid.CzMin, CzMax: in.Grid.CzMax,
 			RMin: in.Grid.RMin, RMax: in.Grid.RMax, CxStep: in.Grid.CxStep, CzStep: in.Grid.CzStep, RStep: in.Grid.RStep,
 		}
-		summary, err = geotech.SearchCritical(gin, grid)
+		summary, err = geotech.SearchCritical(gin, grid, method)
 		if err != nil {
 			return err
 		}

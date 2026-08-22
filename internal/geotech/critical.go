@@ -13,11 +13,22 @@ type GridBounds struct {
 	CxStep, CzStep, RStep                  float64
 }
 
-// SearchCritical enumerates every (cx, cz, R) on the grid, solves Bishop for
-// each legal surface, and returns the minimum-F surface plus coverage counters
-// (total / evaluated / skipped) — illegal geometries (no underground arc) are
-// counted as skipped, never silently dropped (boundary constraint #4).
-func SearchCritical(in SolveInput, grid GridBounds) (model.SearchSummary, error) {
+// SearchCritical enumerates every (cx, cz, R) on the grid, solves the requested
+// method for each legal surface, and returns the minimum-F surface plus coverage
+// counters (total / evaluated / skipped) — illegal geometries (no underground
+// arc) are counted as skipped, never silently dropped (boundary constraint #4).
+//
+// The method is honoured so a Janbu/Fellenius critical search ranks surfaces by
+// that method's F, not Bishop's; an empty method falls back to Bishop for
+// backward compatibility.
+func SearchCritical(in SolveInput, grid GridBounds, method model.AnalysisMethod) (model.SearchSummary, error) {
+	if method == "" {
+		method = model.MethodBishop
+	}
+	solve := solverFor(method)
+	if solve == nil {
+		return model.SearchSummary{}, ErrUnknownMethod
+	}
 	if grid.CxStep <= 0 {
 		grid.CxStep = (grid.CxMax - grid.CxMin) / 4
 	}
@@ -46,7 +57,7 @@ func SearchCritical(in SolveInput, grid GridBounds) (model.SearchSummary, error)
 				run := in
 				run.Cx, run.Cz, run.R = cx, cz, r
 				run.Reinforcements = nil // baseline surfaces in the search
-				res, err := SolveBishop(run)
+				res, err := solve(run)
 				if err != nil || !res.Converged {
 					summary.Skipped++
 					continue

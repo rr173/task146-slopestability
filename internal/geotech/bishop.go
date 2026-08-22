@@ -10,6 +10,41 @@ import (
 // ErrNonConverge signals that Bishop iteration did not settle within MaxIter.
 var ErrNonConverge = errors.New("geotech: bishop iteration did not converge")
 
+// Solve dispatches to the limit-equilibrium method named by method. It is the
+// single authority for method selection; every call site that honours a
+// user-chosen method goes through here so Bishop is never run by accident when
+// Janbu or Fellenius was requested. An empty method defaults to Bishop.
+func Solve(method model.AnalysisMethod, in SolveInput) (SolveResult, error) {
+	switch method {
+	case "", model.MethodBishop:
+		return SolveBishop(in)
+	case model.MethodFellenius:
+		return SolveFellenius(in)
+	case model.MethodJanbu:
+		return SolveJanbu(in)
+	default:
+		return SolveResult{}, ErrUnknownMethod
+	}
+}
+
+// ErrUnknownMethod signals an AnalysisMethod value with no solver.
+var ErrUnknownMethod = errors.New("geotech: unknown analysis method")
+
+// solverFor returns the function pointer for a method (used by the critical
+// search hot loop to avoid re-dispatching per grid point).
+func solverFor(method model.AnalysisMethod) func(SolveInput) (SolveResult, error) {
+	switch method {
+	case "", model.MethodBishop:
+		return SolveBishop
+	case model.MethodFellenius:
+		return SolveFellenius
+	case model.MethodJanbu:
+		return SolveJanbu
+	default:
+		return nil
+	}
+}
+
 // SolveResult is the output of any method solver.
 type SolveResult struct {
 	F          float64
@@ -46,8 +81,7 @@ type ReinforcementInput struct {
 // the equation until |ΔF| < ConvergeTol or MaxIter is reached. Reinforcement is
 // applied after a baseline pass (boundary constraint #3: min(material, geotech)
 // and a cap_factor×baseline ceiling).
-func SolveBishop(in SolveInput) (SolveResult, error) {
-	s, err := Slices(in.Profile, in.Layers, in.Cx, in.Cz, in.R, in.N, in.WaterTableEl, in.MeasuredU)
+func SolveBishop(in SolveInput) (SolveResult, error) {	s, err := Slices(in.Profile, in.Layers, in.Cx, in.Cz, in.R, in.N, in.WaterTableEl, in.MeasuredU)
 	if err != nil {
 		return SolveResult{}, err
 	}

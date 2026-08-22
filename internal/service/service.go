@@ -10,7 +10,6 @@
 package service
 
 import (
-	"fmt"
 	"math"
 	"sync"
 
@@ -154,16 +153,11 @@ func alertFromF(f float64) model.AlertLevel {
 // nextID wraps idlib.New for brevity in the method files.
 func nextID(prefix string) string { return idlib.New(prefix) }
 
-// solveByMethod selects a limit-equilibrium formulation for one input.
+// solveByMethod selects a limit-equilibrium formulation for one input. It
+// delegates to geotech.Solve, the single dispatch authority, so every call
+// path (submit, live recompute, restart reconcile, critical search) honours
+// the method the user actually chose — never defaulting to Bishop when Janbu
+// or Fellenius was requested.
 func solveByMethod(method model.AnalysisMethod, in geotech.SolveInput) (geotech.SolveResult, error) {
-	switch method {
-	case model.MethodBishop:
-		return geotech.SolveBishop(in)
-	case model.MethodFellenius:
-		return geotech.SolveFellenius(in)
-	case model.MethodJanbu:
-		return geotech.SolveJanbu(in)
-	default:
-		return geotech.SolveResult{}, fmt.Errorf("%w: unknown method %s", store.ErrInvariant, method)
-	}
+	return geotech.Solve(method, in)
 }

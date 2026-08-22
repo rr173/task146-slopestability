@@ -81,7 +81,9 @@ func (r *Reconciler) reconcileOne(ctx context.Context, slopeID string) (int, int
 				N: last.SliceCount, WaterTableEl: waterTable, Kh: last.Kh, Kv: last.Kv,
 				Reinforcements: reinforcementInputs(reinf, layers, sl),
 			}
-			res, serr := geotech.SolveBishop(gin)
+			// Re-run the method the last analysis was submitted with so a
+			// restart does not silently swap Janbu/Fellenius for Bishop.
+			res, serr := solveByMethod(last.Method, gin)
 			if serr == nil {
 				alert := alertFromF(res.F)
 				// Drift detection: if the stored current_f was previously set
