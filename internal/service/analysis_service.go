@@ -129,7 +129,11 @@ func (s *Service) SubmitAnalysis(ctx context.Context, slopeID string, in Analysi
 			waterTable = sl.WaterTableEl
 		}
 		prof := profileFromSlope(sl)
-		prof.SurchargeQ = 0
+		// The run-time surcharge overrides the slope's persistent value for this
+		// analysis (model.Analysis.SurchargeQ contract). Feed it into the solver
+		// so the construction load actually participates in F — without this the
+		// stored SurchargeQ is decorative and downstream recomputes stay blind to it.
+		prof.SurchargeQ = in.SurchargeQ
 		if in.TensionCrackDepth > 0 {
 			prof.TensionCrackEl = sl.CrestEl - in.TensionCrackDepth
 		}

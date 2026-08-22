@@ -178,3 +178,71 @@ func TestAnalysisRetainsRunWaterTableOverride(t *testing.T) {
 		t.Fatalf("analysis water table = %v, want explicit run head 9", result.WaterTableEl)
 	}
 }
+
+// TestReadingRecomputeHonoursRunSurcharge verifies that the construction
+// surcharge submitted with an analysis survives into the recomputation that
+// fires when a later reading is recorded. The control is an identical slope
+// whose analysis carried no surcharge; under the same reading, the two
+// recomputes must differ — otherwise the recompute is running against an
+// unladen model and ignoring the temporary load.
+func TestReadingRecomputeHonoursRunSurcharge(t *testing.T) {
+	// Slope A: analysis submitted under a 50 kN/m² surcharge.
+	svcA, ctxA, slopeA, slipA := configuredAnalysisService(t, 0)
+	runAnalysisForTest(t, svcA, ctxA, slopeA, slipA, AnalysisInput{SurchargeQ: 50})
+	insA, err := svcA.CreateInstrument(ctxA, slopeA, InstrumentInput{Type: "piezometer", X: 5, InstallEl: 15, RangeMax: 30})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, recompLoaded, err := svcA.AddReadingRecord(ctxA, insA.ID, ReadingInput{Value: 8, Ts: 1001, Source: "manual"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Slope B: identical, but the analysis carried no surcharge.
+	svcB, ctxB, slopeB, slipB := configuredAnalysisService(t, 0)
+	runAnalysisForTest(t, svcB, ctxB, slopeB, slipB, AnalysisInput{})
+	insB, err := svcB.CreateInstrument(ctxB, slopeB, InstrumentInput{Type: "piezometer", X: 5, InstallEl: 15, RangeMax: 30})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, recompBare, err := svcB.AddReadingRecord(ctxB, insB.ID, ReadingInput{Value: 8, Ts: 1001, Source: "manual"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !(recompLoaded > 0) || !(recompBare > 0) {
+		t.Fatalf("recompute F: loaded=%v bare=%v", recompLoaded, recompBare)
+	}
+	if absf(recompLoaded-recompBare) < 1e-6 {
+		t.Fatalf("recompute F identical with/without surcharge: loaded=%v bare=%v; surcharge not threaded into recompute", recompLoaded, recompBare)
+	}
+}
+
+// TestReconcileHonoursRunSurcharge verifies the startup-recovery recompute
+// (ReconcileAll) replays the analysis-time surcharge so current_f is stable
+// across a restart rather than recomputed against an unladen model.
+func TestReconcileHonoursRunSurcharge(t *testing.T) {
+	svc, ctx, slopeID, slipID := configuredAnalysisService(t, 0)
+	loaded := runAnalysisForTest(t, svc, ctx, slopeID, slipID, AnalysisInput{SurchargeQ: 50})
+	want := loaded.FinalF
+
+	// Bump the clock so reconcile's timestamp advances; recompute and confirm
+	// current_f stays at the surcharge-loaded value, not the bare value.
+	if _, _, err := svc.Reconcile().ReconcileAll(ctx); err != nil {
+		t.Fatalf("reconcile: %v", err)
+	}
+	sl, err := svc.GetSlope(ctx, slopeID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if absf(sl.CurrentF-want) > 1e-3 {
+		t.Fatalf("reconciled current_f = %v, want surcharge-loaded %v", sl.CurrentF, want)
+	}
+}
+
+func absf(x float64) float64 {
+	if x < 0 {
+		return -x
+	}
+	return x
+}

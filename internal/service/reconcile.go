@@ -72,7 +72,9 @@ func (r *Reconciler) reconcileOne(ctx context.Context, slopeID string) (int, int
 				return 0, 0, err
 			}
 			prof := profileFromSlope(sl)
-			prof.SurchargeQ = 0
+			// Carry the analysis-time surcharge into the recompute so the
+			// reconciled current_f matches what the run actually used.
+			prof.SurchargeQ = last.SurchargeQ
 			if last.TensionCrackDepth > 0 {
 				prof.TensionCrackEl = sl.CrestEl - last.TensionCrackDepth
 			}

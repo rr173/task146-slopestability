@@ -158,7 +158,10 @@ func (s *Service) AddReadingRecord(ctx context.Context, instrumentID string, in 
 		}
 
 		prof := profileFromSlope(sl)
-		prof.SurchargeQ = 0
+		// Replay the analysis-time surcharge so the recompute sees the same
+		// construction load as the original run — otherwise a reading taken under
+		// surcharge recomputes against an unladen model.
+		prof.SurchargeQ = last.SurchargeQ
 		if last.TensionCrackDepth > 0 {
 			prof.TensionCrackEl = sl.CrestEl - last.TensionCrackDepth
 		}
