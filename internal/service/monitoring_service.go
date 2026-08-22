@@ -159,9 +159,7 @@ func (s *Service) AddReadingRecord(ctx context.Context, instrumentID string, in 
 
 		prof := profileFromSlope(sl)
 		prof.SurchargeQ = last.SurchargeQ
-		if last.TensionCrackDepth > 0 {
-			prof.TensionCrackEl = sl.CrestEl
-		}
+		applyTensionCrackDepth(&prof, sl.CrestEl, last.TensionCrackDepth)
 		reinf, _ := s.store.ListReinforcementsTx(ctx, tx, slopeID)
 		gin := geotech.SolveInput{
 			Profile: prof, Layers: layers, Cx: sf.Cx, Cz: sf.Cz, R: sf.Radius,

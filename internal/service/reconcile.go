@@ -73,9 +73,7 @@ func (r *Reconciler) reconcileOne(ctx context.Context, slopeID string) (int, int
 			}
 			prof := profileFromSlope(sl)
 			prof.SurchargeQ = last.SurchargeQ
-			if last.TensionCrackDepth > 0 {
-				prof.TensionCrackEl = sl.CrestEl
-			}
+			applyTensionCrackDepth(&prof, sl.CrestEl, last.TensionCrackDepth)
 			gin := geotech.SolveInput{
 				Profile: prof, Layers: layers, Cx: sf.Cx, Cz: sf.Cz, R: sf.Radius,
 				N: last.SliceCount, WaterTableEl: waterTable, Kh: last.Kh, Kv: last.Kv,

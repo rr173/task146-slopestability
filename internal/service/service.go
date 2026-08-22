@@ -63,6 +63,21 @@ func profileFromSlope(sl *model.Slope) geotech.Profile {
 	}
 }
 
+// applyTensionCrackDepth overrides the profile's tension-crack geometry from a
+// depth measured below the crest. The solver stores the crack as the elevation
+// of its bottom (TensionCrackEl), so a depth d sets TensionCrackEl = crest − d;
+// this both removes the soil column above the crack bottom and drives the crack
+// water force. A non-positive depth leaves the profile's existing crack setting
+// untouched, so a run that omits the crack defers to the slope's own value. The
+// analysis, monitoring and reconcile paths must call this so the crack is
+// applied consistently whenever a depth is supplied.
+func applyTensionCrackDepth(prof *geotech.Profile, crestEl, depth float64) {
+	if depth <= 0 {
+		return
+	}
+	prof.TensionCrackEl = crestEl - depth
+}
+
 // layerAtElev returns the soil layer whose band contains el.
 func layerAtElev(layers []model.SoilLayer, el float64) model.SoilLayer {
 	var best model.SoilLayer

@@ -130,9 +130,7 @@ func (s *Service) SubmitAnalysis(ctx context.Context, slopeID string, in Analysi
 		}
 		prof := profileFromSlope(sl)
 		prof.SurchargeQ = in.SurchargeQ
-		if in.TensionCrackDepth > 0 {
-			prof.TensionCrackEl = sl.CrestEl
-		}
+		applyTensionCrackDepth(&prof, sl.CrestEl, in.TensionCrackDepth)
 		gin := geotech.SolveInput{
 			Profile: prof, Layers: layers, Cx: sf.Cx, Cz: sf.Cz, R: sf.Radius,
 			N: in.SliceCount, WaterTableEl: waterTable, Kh: in.Kh, Kv: in.Kv,
