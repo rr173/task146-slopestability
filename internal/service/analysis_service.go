@@ -135,7 +135,7 @@ func (s *Service) SubmitAnalysis(ctx context.Context, slopeID string, in Analysi
 		}
 		gin := geotech.SolveInput{
 			Profile: prof, Layers: layers, Cx: sf.Cx, Cz: sf.Cz, R: sf.Radius,
-			N: in.SliceCount, WaterTableEl: waterTable, Kh: in.Kh, Kv: 0,
+			N: in.SliceCount, WaterTableEl: waterTable, Kh: in.Kh, Kv: in.Kv,
 			Reinforcements: reinforcementInputs(reinf, layers, sl),
 		}
 

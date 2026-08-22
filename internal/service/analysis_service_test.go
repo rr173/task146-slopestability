@@ -108,6 +108,51 @@ func TestAnalysisHonoursVerticalSeismicInput(t *testing.T) {
 	}
 }
 
+// TestMonitoringRecomputeHonoursVerticalSeismic confirms that a monitoring
+// reading replay the last analysis with its persisted Kv, so the recomputed F
+// still reflects the configured vertical seismic action.
+func TestMonitoringRecomputeHonoursVerticalSeismic(t *testing.T) {
+	svc, ctx, slopeID, slipID := configuredAnalysisService(t, 0)
+	still := runAnalysisForTest(t, svc, ctx, slopeID, slipID, AnalysisInput{})
+	seismic := runAnalysisForTest(t, svc, ctx, slopeID, slipID, AnalysisInput{Kv: 0.2})
+	if seismic.FinalF == still.FinalF {
+		t.Fatalf("vertical seismic input did not change F: %v", seismic.FinalF)
+	}
+	ins, err := svc.CreateInstrument(ctx, slopeID, InstrumentInput{Type: "piezometer", X: 5, InstallEl: 15, RangeMax: 30})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, recompF, err := svc.AddReadingRecord(ctx, ins.ID, ReadingInput{Value: 8, Ts: 1001, Source: "manual"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if recompF == still.FinalF {
+		t.Fatalf("monitoring recompute dropped vertical seismic: recompF=%v, still=%v", recompF, still.FinalF)
+	}
+}
+
+// TestReconcileHonoursVerticalSeismic confirms that the restart reconciliation
+// path reuses the persisted Kv when re-deriving current_f, so the configured
+// vertical seismic action survives a service restart.
+func TestReconcileHonoursVerticalSeismic(t *testing.T) {
+	svc, ctx, slopeID, slipID := configuredAnalysisService(t, 0)
+	still := runAnalysisForTest(t, svc, ctx, slopeID, slipID, AnalysisInput{})
+	seismic := runAnalysisForTest(t, svc, ctx, slopeID, slipID, AnalysisInput{Kv: 0.2})
+	if seismic.FinalF == still.FinalF {
+		t.Fatalf("vertical seismic input did not change F: %v", seismic.FinalF)
+	}
+	if _, _, err := svc.Reconcile().ReconcileAll(ctx); err != nil {
+		t.Fatal(err)
+	}
+	sl, err := svc.GetSlope(ctx, slopeID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sl.CurrentF == still.FinalF {
+		t.Fatalf("reconcile dropped vertical seismic: current_f=%v, still=%v", sl.CurrentF, still.FinalF)
+	}
+}
+
 func TestAnalysisAppliesRunSurcharge(t *testing.T) {
 	svc, ctx, slopeID, slipID := configuredAnalysisService(t, 0)
 	plain := runAnalysisForTest(t, svc, ctx, slopeID, slipID, AnalysisInput{})
